@@ -14,7 +14,7 @@ if str(BASE_DIR) not in sys.path:
 # 1) Imports do seu projeto (depois do sys.path)
 from app.core.settings import get_settings
 from app.models.base import Base
-from app.models import cliente  # noqa: F401  # importe outros modelos aqui
+import app.models  # <-- importa o pacote que auto-carrega todos os models
 
 # 2) Config padrão do Alembic
 config = context.config

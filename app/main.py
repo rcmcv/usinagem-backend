@@ -3,6 +3,7 @@ from fastapi.middleware.cors import CORSMiddleware
 
 from app.core.settings import get_settings
 from app.api.v1.endpoints.health import router as health_router
+from app.api.v1.endpoints.clientes import router as clientes_router
 
 settings = get_settings()
 
@@ -28,7 +29,8 @@ def create_app() -> FastAPI:
 
     # Rotas v1
     app.include_router(health_router, prefix="/api/v1", tags=["Health"])
-
+    app.include_router(clientes_router, prefix="/api/v1", tags=["Clientes"])
+    
     @app.get("/", tags=["Root"])
     def root():
         """
