@@ -43,6 +43,11 @@ class Settings(BaseSettings):
     PROJECT_NAME: str = "Usinagem ERP API"
     VERSION: str = "0.1.0"
 
+    # JWT
+    ACCESS_TOKEN_EXPIRE_MINUTES: int = 30
+    REFRESH_TOKEN_EXPIRE_DAYS: int = 7
+    JWT_ALG: str = "HS256"
+
     # Segurança
     SECRET_KEY: str  # gere uma chave segura e mantenha fora do Git
 

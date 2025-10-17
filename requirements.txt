@@ -7,3 +7,6 @@ alembic==1.13.2
 sqlalchemy[asyncio]==2.0.34
 aiosqlite==0.20.0
 # asyncpg==0.29.0   # (comentado por enquanto estamos no SQLite)
+passlib[bcrypt]==1.7.4
+python-jose[cryptography]==3.3.0
+bcrypt==3.2.2
