@@ -3,6 +3,11 @@ from fastapi.security import HTTPAuthorizationCredentials
 from sqlalchemy.ext.asyncio import AsyncSession
 from jose import JWTError
 
+from typing import List
+from app.schemas.user import UserOut
+from app.deps.auth import require_roles
+from fastapi import Query
+
 from app.deps.db import get_db
 from app.deps.auth import bearer_scheme, get_current_user
 from app.repositories import user as repo
@@ -83,3 +88,11 @@ async def create_user(
         raise HTTPException(status_code=400, detail="Email já cadastrado")
 
     return await repo.create(db, payload)
+
+@router.get("/users", response_model=List[UserOut], dependencies=[Depends(require_roles("ADMIN"))])
+async def list_users(
+    skip: int = Query(0, ge=0),
+    limit: int = Query(50, ge=1, le=200),
+    db: AsyncSession = Depends(get_db),
+):
+    return await repo.list_(db, skip=skip, limit=limit)

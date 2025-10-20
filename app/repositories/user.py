@@ -1,4 +1,4 @@
-from typing import Optional
+from typing import Optional, List
 from sqlalchemy import func
 from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy import select
@@ -36,3 +36,9 @@ async def authenticate(db: AsyncSession, email: str, password: str) -> Optional[
     if not user.is_active:
         return None
     return user
+
+async def list_(db: AsyncSession, skip: int = 0, limit: int = 50) -> list[User]:
+    res = await db.execute(
+        select(User).order_by(User.id).offset(skip).limit(limit)
+    )
+    return list(res.scalars())
