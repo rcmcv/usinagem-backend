@@ -42,3 +42,6 @@ async def list_(db: AsyncSession, skip: int = 0, limit: int = 50) -> list[User]:
         select(User).order_by(User.id).offset(skip).limit(limit)
     )
     return list(res.scalars())
+
+async def get_by_id(db: AsyncSession, user_id: int) -> Optional[User]:
+    return await db.get(User, user_id)

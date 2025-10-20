@@ -1,17 +1,16 @@
-from fastapi import APIRouter, Depends, HTTPException, status, Security, Header
+from fastapi import APIRouter, Depends, HTTPException, status, Query, Security, Header
 from fastapi.security import HTTPAuthorizationCredentials
 from sqlalchemy.ext.asyncio import AsyncSession
 from jose import JWTError
 
 from typing import List
 from app.schemas.user import UserOut
-from app.deps.auth import require_roles
-from fastapi import Query
-
 from app.deps.db import get_db
+from app.deps.auth import require_roles
+from app.schemas.user import LoginInput, TokenPair, UserCreate, UserOut
+
 from app.deps.auth import bearer_scheme, get_current_user
 from app.repositories import user as repo
-from app.schemas.user import LoginInput, TokenPair, UserCreate, UserOut
 from app.core.security import create_access_token, create_refresh_token, decode_token
 
 router = APIRouter()
@@ -96,3 +95,10 @@ async def list_users(
     db: AsyncSession = Depends(get_db),
 ):
     return await repo.list_(db, skip=skip, limit=limit)
+
+@router.get("/users/{user_id}", response_model=UserOut, dependencies=[Depends(require_roles("ADMIN"))])
+async def get_user_by_id(user_id: int, db: AsyncSession = Depends(get_db)):
+    user = await repo.get_by_id(db, user_id)
+    if not user:
+        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Usuário não encontrado")
+    return user
