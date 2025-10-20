@@ -25,3 +25,20 @@ class TokenPair(BaseModel):
 class LoginInput(BaseModel):
     email: str
     password: str
+
+class UserUpdateSelf(BaseModel):
+    full_name: Optional[str] = Field(None, max_length=120)
+    email: Optional[str] = Field(None, max_length=180)
+
+class UserUpdateAdmin(BaseModel):
+    full_name: Optional[str] = Field(None, max_length=120)
+    email: Optional[str] = Field(None, max_length=180)
+    role: Optional[str] = Field(None)          # ADMIN, FINANCE, OPERACAO, VIEWER
+    is_active: Optional[bool] = None
+
+class PasswordChangeSelf(BaseModel):
+    current_password: str = Field(..., min_length=8, max_length=128)
+    new_password: str = Field(..., min_length=8, max_length=128)
+
+class PasswordSetAdmin(BaseModel):
+    new_password: str = Field(..., min_length=8, max_length=128)

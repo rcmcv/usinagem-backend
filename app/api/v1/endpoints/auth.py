@@ -6,12 +6,14 @@ from jose import JWTError
 from typing import List
 from app.schemas.user import UserOut
 from app.deps.db import get_db
-from app.deps.auth import require_roles
-from app.schemas.user import LoginInput, TokenPair, UserCreate, UserOut
+from app.deps.auth import get_current_user, require_roles
+from app.schemas.user import (
+    LoginInput, TokenPair, UserCreate, UserOut, UserUpdateSelf,
+    UserUpdateAdmin, PasswordChangeSelf, PasswordSetAdmin,)
 
 from app.deps.auth import bearer_scheme, get_current_user
 from app.repositories import user as repo
-from app.core.security import create_access_token, create_refresh_token, decode_token
+from app.core.security import verify_password, create_access_token, create_refresh_token, decode_token
 
 router = APIRouter()
 
@@ -45,9 +47,33 @@ async def refresh(authorization: str | None = Header(default=None)):
         refresh_token=create_refresh_token(email),
     )
 
-@router.get("/auth/me", response_model=UserOut)
-async def me(user=Depends(get_current_user)):
-    return user
+@router.patch("/users/me", response_model=UserOut, dependencies=[])
+async def update_me(
+    payload: UserUpdateSelf,
+    db: AsyncSession = Depends(get_db),
+    current = Depends(get_current_user),
+):
+    try:
+        updated = await repo.update_self(db, current, payload)
+        return updated
+    except ValueError as e:
+        if str(e) == "email_taken":
+            raise HTTPException(status_code=400, detail="E-mail já está em uso")
+        raise
+
+@router.patch("/users/me/password")
+async def change_my_password(
+    payload: PasswordChangeSelf,
+    db: AsyncSession = Depends(get_db),
+    current = Depends(get_current_user),
+):
+    if not verify_password(payload.current_password, current.hashed_password):
+        raise HTTPException(status_code=400, detail="Senha atual incorreta")
+    await repo.set_password(db, current, payload.new_password)
+    return {
+        "detail": f"Senha alterada com sucesso, {current.full_name}.",
+        "user": {"id": current.id, "full_name": current.full_name, "email": current.email},
+    }
 
 @router.post("/users", response_model=UserOut, status_code=201)
 async def create_user(
@@ -95,6 +121,40 @@ async def list_users(
     db: AsyncSession = Depends(get_db),
 ):
     return await repo.list_(db, skip=skip, limit=limit)
+
+@router.patch("/users/{user_id}", response_model=UserOut, dependencies=[Depends(require_roles("ADMIN"))])
+async def admin_update_user(
+    user_id: int,
+    payload: UserUpdateAdmin,
+    db: AsyncSession = Depends(get_db),
+):
+    user = await repo.get_by_id(db, user_id)
+    if not user:
+        raise HTTPException(status_code=404, detail="Usuário não encontrado")
+    try:
+        updated = await repo.update_admin(db, user, payload)
+        return updated
+    except ValueError as e:
+        if str(e) == "email_taken":
+            raise HTTPException(status_code=400, detail="E-mail já está em uso")
+        if str(e) == "would_remove_last_admin":
+            raise HTTPException(status_code=400, detail="Não é permitido remover/rebaixar o último ADMIN ativo")
+        raise
+
+@router.patch("/users/{user_id}/password", dependencies=[Depends(require_roles("ADMIN"))])
+async def admin_set_password(
+    user_id: int,
+    payload: PasswordSetAdmin,
+    db: AsyncSession = Depends(get_db),
+):
+    user = await repo.get_by_id(db, user_id)
+    if not user:
+        raise HTTPException(status_code=404, detail="Usuário não encontrado")
+    await repo.set_password(db, user, payload.new_password)
+    return {
+        "detail": f"Senha do usuário '{user.full_name}' atualizada com sucesso.",
+        "user": {"id": user.id, "full_name": user.full_name, "email": user.email},
+    }
 
 @router.get("/users/{user_id}", response_model=UserOut, dependencies=[Depends(require_roles("ADMIN"))])
 async def get_user_by_id(user_id: int, db: AsyncSession = Depends(get_db)):
