@@ -6,6 +6,9 @@ from app.api.v1.endpoints.health import router as health_router
 from app.api.v1.endpoints.clientes import router as clientes_router
 from app.api.v1.endpoints.auth import router as auth_router
 
+from app.core.error_handlers import register_error_handlers
+from app.core.middlewares import RequestIDMiddleware
+
 settings = get_settings()
 
 def create_app() -> FastAPI:
@@ -20,6 +23,7 @@ def create_app() -> FastAPI:
     )
 
     # CORS: em dev liberado; em prod restrito (defina CORS_ORIGINS no ambiente)
+    app.add_middleware(RequestIDMiddleware)  # <-- Request ID
     app.add_middleware(
         CORSMiddleware,
         allow_origins=settings.CORS_ORIGINS,
@@ -27,6 +31,9 @@ def create_app() -> FastAPI:
         allow_methods=["*"],
         allow_headers=["*"],
     )
+
+    # Handlers globais
+    register_error_handlers(app)             # <-- registra handlers
 
     # Rotas v1
     app.include_router(health_router, prefix="/api/v1", tags=["Health"])

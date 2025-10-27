@@ -1,7 +1,10 @@
-from fastapi import APIRouter, Depends, HTTPException, status, Query, Security, Header
+from fastapi import APIRouter, Depends, HTTPException, status, Query, Security, Header, Request
 from fastapi.security import HTTPAuthorizationCredentials
 from sqlalchemy.ext.asyncio import AsyncSession
 from jose import JWTError
+
+from app.core.api import ok
+from app.deps.pagination import get_pagination
 
 from typing import List
 from app.schemas.user import UserOut
@@ -114,13 +117,25 @@ async def create_user(
 
     return await repo.create(db, payload)
 
-@router.get("/users", response_model=List[UserOut], dependencies=[Depends(require_roles("ADMIN"))])
+@router.get("/users", response_model=None, dependencies=[Depends(require_roles("ADMIN"))])
 async def list_users(
-    skip: int = Query(0, ge=0),
-    limit: int = Query(50, ge=1, le=200),
+    request: Request,
+    pagination = Depends(get_pagination),
     db: AsyncSession = Depends(get_db),
 ):
-    return await repo.list_(db, skip=skip, limit=limit)
+    items = await repo.list_(db, skip=pagination.skip, limit=pagination.limit)
+    meta = {"page": pagination.page, "size": pagination.size, "count": len(items)}
+    return ok(data=[
+        {
+            "id": u.id,
+            "email": u.email,
+            "full_name": u.full_name,
+            "role": u.role,
+            "is_active": u.is_active,
+            "created_at": u.created_at.isoformat() if u.created_at else None,
+            "updated_at": u.updated_at.isoformat() if u.updated_at else None,
+        } for u in items
+    ], meta=meta, request=request)
 
 @router.patch("/users/{user_id}", response_model=UserOut, dependencies=[Depends(require_roles("ADMIN"))])
 async def admin_update_user(
