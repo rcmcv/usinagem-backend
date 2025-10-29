@@ -6,6 +6,7 @@ from app.api.v1.endpoints.health import router as health_router
 from app.api.v1.endpoints.clientes import router as clientes_router
 from app.api.v1.endpoints.auth import router as auth_router
 from app.api.v1.endpoints.fornecedores import router as fornecedores_router
+from app.api.v1.endpoints.tipos_servico import router as tipos_servico_router
 
 from app.core.error_handlers import register_error_handlers
 from app.core.middlewares import RequestIDMiddleware
@@ -41,6 +42,7 @@ def create_app() -> FastAPI:
     app.include_router(auth_router, prefix="/api/v1", tags=["Auth & Users"])
     app.include_router(clientes_router, prefix="/api/v1", tags=["Clientes"])
     app.include_router(fornecedores_router, prefix="/api/v1", tags=["Fornecedores"])
+    app.include_router(tipos_servico_router, prefix="/api/v1", tags=["Tipos de Serviço"])
     
     @app.get("/", tags=["Root"])
     def root():
