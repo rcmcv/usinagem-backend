@@ -8,6 +8,8 @@ from app.api.v1.endpoints.auth import router as auth_router
 from app.api.v1.endpoints.fornecedores import router as fornecedores_router
 from app.api.v1.endpoints.tipos_servico import router as tipos_servico_router
 from app.api.v1.endpoints.unidades_medida import router as unidades_medida_router
+from app.api.v1.endpoints.materiais import router as materiais_router
+from app.api.v1.endpoints.maquinas import router as maquinas_router
 
 from app.core.error_handlers import register_error_handlers
 from app.core.middlewares import RequestIDMiddleware
@@ -45,6 +47,8 @@ def create_app() -> FastAPI:
     app.include_router(fornecedores_router, prefix="/api/v1", tags=["Fornecedores"])
     app.include_router(tipos_servico_router, prefix="/api/v1", tags=["Tipos de Serviço"])
     app.include_router(unidades_medida_router, prefix="/api/v1", tags=["Unidades de Medida"])
+    app.include_router(materiais_router, prefix="/api/v1", tags=["Materiais"])
+    app.include_router(maquinas_router, prefix="/api/v1", tags=["Maquinas"])
     
     @app.get("/", tags=["Root"])
     def root():
