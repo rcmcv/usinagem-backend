@@ -11,6 +11,7 @@ from app.api.v1.endpoints.unidades_medida import router as unidades_medida_route
 from app.api.v1.endpoints.materiais import router as materiais_router
 from app.api.v1.endpoints.maquinas import router as maquinas_router
 from app.api.v1.endpoints.contratos import router as contratos_router
+from app.api.v1.endpoints.contrato_hh_precos import router as contrato_hh_precos_router
 
 from app.core.error_handlers import register_error_handlers
 from app.core.middlewares import RequestIDMiddleware
@@ -51,6 +52,7 @@ def create_app() -> FastAPI:
     app.include_router(materiais_router, prefix="/api/v1", tags=["Materiais"])
     app.include_router(maquinas_router, prefix="/api/v1", tags=["Maquinas"])
     app.include_router(contratos_router, prefix="/api/v1", tags=["Contratos"])
+    app.include_router(contrato_hh_precos_router, prefix="/api/v1", tags=["Contrato — HH por Máquina"])
     
     @app.get("/", tags=["Root"])
     def root():
