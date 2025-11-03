@@ -11,19 +11,29 @@ from app.schemas.contrato_hh_preco import (
 
 router = APIRouter()
 
+# CREATE (contrato escopado na rota)
 @router.post(
-    "/contratos/hh-precos",
+    "/contratos/{contrato_id}/hh-precos",
     status_code=status.HTTP_201_CREATED,
     response_model=None,
     dependencies=[Depends(require_roles("ADMIN", "OPERACAO"))],
 )
 async def create_contrato_hh_preco(
+    contrato_id: int,
     payload: ContratoHHPrecoCreate,
     request: Request,
     db: AsyncSession = Depends(get_db),
 ):
-    obj = await repo.create(db, payload)
-    data = {
+    # Garante que usaremos o contrato_id da rota (ignora o que vier no body)
+    data = ContratoHHPrecoCreate(
+        contrato_id=contrato_id,
+        maquina_id=payload.maquina_id,
+        tipo_hh=payload.tipo_hh,
+        uom_id=payload.uom_id,
+        preco_hora=payload.preco_hora,
+    )
+    obj = await repo.create(db, data)
+    out = {
         "id": obj.id,
         "contrato_id": obj.contrato_id,
         "maquina_id": obj.maquina_id,
@@ -33,20 +43,27 @@ async def create_contrato_hh_preco(
         "created_at": obj.created_at.isoformat() if obj.created_at else None,
         "updated_at": obj.updated_at.isoformat() if obj.updated_at else None,
     }
-    return created(data=data, message="Preço de HH por máquina criado com sucesso.", request=request)
+    return created(data=out, message="Preço de HH por máquina criado com sucesso.", request=request)
 
-@router.get("/contratos/hh-precos", response_model=None)
+# LIST (sempre por contrato; filtros opcionais)
+@router.get("/contratos/{contrato_id}/hh-precos", response_model=None)
 async def list_contrato_hh_precos(
+    contrato_id: int,
     request: Request,
     pagination = Depends(get_pagination),
     db: AsyncSession = Depends(get_db),
     user = Depends(get_current_user),
-    contrato_id: int | None = Query(None, ge=1),
     maquina_id: int | None = Query(None, ge=1),
     tipo_hh: str | None = Query(None),
 ):
-    items = await repo.list_(db, skip=pagination.skip, limit=pagination.limit,
-                             contrato_id=contrato_id, maquina_id=maquina_id, tipo_hh=tipo_hh)
+    items = await repo.list_(
+        db,
+        skip=pagination.skip,
+        limit=pagination.limit,
+        contrato_id=contrato_id,
+        maquina_id=maquina_id,
+        tipo_hh=tipo_hh
+    )
     meta = {"page": pagination.page, "size": pagination.size, "count": len(items)}
     data = [
         {
@@ -62,32 +79,37 @@ async def list_contrato_hh_precos(
     ]
     return ok(data=data, meta=meta, request=request)
 
-@router.get("/contratos/hh-precos/{preco_id}", response_model=ContratoHHPrecoOut)
+# GET by id (também aninhado em contrato para evitar colisão)
+@router.get("/contratos/{contrato_id}/hh-precos/{preco_id}", response_model=ContratoHHPrecoOut)
 async def get_contrato_hh_preco(
+    contrato_id: int,
     preco_id: int,
     db: AsyncSession = Depends(get_db),
     user = Depends(get_current_user),
 ):
     obj = await repo.get(db, preco_id)
-    if not obj:
+    if not obj or obj.contrato_id != contrato_id:
         raise HTTPException(status_code=404, detail="Preço de HH de contrato não encontrado")
     return obj
 
+# UPDATE
 @router.put(
-    "/contratos/hh-precos/{preco_id}",
+    "/contratos/{contrato_id}/hh-precos/{preco_id}",
     response_model=None,
     dependencies=[Depends(require_roles("ADMIN", "OPERACAO"))],
 )
 async def update_contrato_hh_preco(
+    contrato_id: int,
     preco_id: int,
     payload: ContratoHHPrecoUpdate,
     request: Request,
     db: AsyncSession = Depends(get_db),
 ):
-    obj = await repo.update(db, preco_id, payload)
-    if not obj:
+    obj = await repo.get(db, preco_id)
+    if not obj or obj.contrato_id != contrato_id:
         raise HTTPException(status_code=404, detail="Preço de HH de contrato não encontrado")
-    data = {
+    obj = await repo.update(db, preco_id, payload)
+    out = {
         "id": obj.id,
         "contrato_id": obj.contrato_id,
         "maquina_id": obj.maquina_id,
@@ -97,19 +119,24 @@ async def update_contrato_hh_preco(
         "created_at": obj.created_at.isoformat() if obj.created_at else None,
         "updated_at": obj.updated_at.isoformat() if obj.updated_at else None,
     }
-    return ok(data=data, message="Preço de HH por máquina atualizado com sucesso.", request=request)
+    return ok(data=out, message="Preço de HH por máquina atualizado com sucesso.", request=request)
 
+# DELETE
 @router.delete(
-    "/contratos/hh-precos/{preco_id}",
+    "/contratos/{contrato_id}/hh-precos/{preco_id}",
     status_code=status.HTTP_200_OK,
     response_model=None,
     dependencies=[Depends(require_roles("ADMIN", "OPERACAO"))],
 )
 async def delete_contrato_hh_preco(
+    contrato_id: int,
     preco_id: int,
     request: Request,
     db: AsyncSession = Depends(get_db),
 ):
+    obj = await repo.get(db, preco_id)
+    if not obj or obj.contrato_id != contrato_id:
+        raise HTTPException(status_code=404, detail="Preço de HH de contrato não encontrado")
     removed = await repo.delete(db, preco_id)
     if not removed:
         raise HTTPException(status_code=404, detail="Preço de HH de contrato não encontrado")
