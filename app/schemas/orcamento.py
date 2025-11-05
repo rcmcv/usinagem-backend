@@ -1,12 +1,12 @@
 from typing import Optional, Literal
 from datetime import datetime
-from pydantic import BaseModel, Field, ConfigDict
+from pydantic import BaseModel, Field, ConfigDict, StrictInt
 
 TipoOrc = Literal["CONTRATO", "SPOT"]
 StatusOrc = Literal["RASCUNHO", "ENVIADO", "ACEITO", "CANCELADO"]
 
 class OrcamentoBase(BaseModel):
-    cliente_id: int = Field(..., ge=1)
+    cliente_id: StrictInt = Field(..., ge=1, description="ID do cliente (>= 1)")
     tipo: TipoOrc = "SPOT"
     status: StatusOrc = "RASCUNHO"
     contrato_id: Optional[int] = None
