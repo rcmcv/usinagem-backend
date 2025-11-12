@@ -22,7 +22,6 @@ def _msg_unique(e_msg: str) -> str:
 def _msg_fk(e_msg: str) -> str:
     return "Violação de integridade referencial: verifique se os IDs relacionados existem."
 
-
 def register_error_handlers(app: FastAPI) -> None:
     @app.exception_handler(StarletteHTTPException)
     async def http_exc_handler(request: Request, exc: StarletteHTTPException):
@@ -36,15 +35,39 @@ def register_error_handlers(app: FastAPI) -> None:
 
     @app.exception_handler(RequestValidationError)
     async def validation_exc_handler(request: Request, exc: RequestValidationError):
+        raw_errors = exc.errors()
+
+        friendly_errors = []
+        for err in raw_errors:
+            loc = err.get("loc", [])
+            field = loc[-1] if loc else None
+            typ = err.get("type", "")
+            ctx = err.get("ctx", {}) or {}
+
+            # Mensagens personalizadas por campo/regra
+            if field == "cliente_id":
+                # vazio/0 → swagger costuma mandar 0; também pode ser tipo errado
+                if typ in ("greater_than_equal", "int_type", "int_parsing"):
+                    friendly_errors.append({
+                        "field": "cliente_id",
+                        "message": "cliente_id é obrigatório e deve ser um inteiro ≥ 1."
+                    })
+                    continue
+
+            # fallback genérico (mantém algo útil, mas mais curto)
+            friendly_errors.append({
+                "field": str(field) if field else "body",
+                "message": err.get("msg", "Campo inválido.")
+            })
+
         payload = fail(
-            message="Erro de validação",
-            errors=exc.errors(),
+            message="Dados inválidos. Corrija os campos destacados.",
+            errors=friendly_errors,
             status_code=422,
             request=request,
         )
         return JSONResponse(status_code=422, content=payload)
 
-    # === NOVO: handler específico para erros de integridade (UNIQUE / FK etc.) ===
     @app.exception_handler(IntegrityError)
     async def integrity_exc_handler(request: Request, exc: IntegrityError):
         raw = ""
@@ -55,10 +78,14 @@ def register_error_handlers(app: FastAPI) -> None:
 
         msg_lower = raw.lower()
         if "unique" in msg_lower or "duplicate key" in msg_lower:
-            friendly = _msg_unique(raw)
+            friendly = "Registro duplicado: violação de unicidade."
+            if "contrato_hh_precos" in msg_lower:
+                friendly = "Já existe um preço de HH para esta combinação (Contrato, Máquina, Tipo de Hora)."
+            if "contrato_material_precos" in msg_lower:
+                friendly = "Já existe um preço de material para esta combinação (Contrato, Material)."
             status_code = 409
         elif "foreign key" in msg_lower or ("constraint failed" in msg_lower and "references" in msg_lower):
-            friendly = _msg_fk(raw)
+            friendly = "Violação de integridade referencial: verifique se os IDs relacionados existem."
             status_code = 400
         else:
             friendly = "Erro de integridade do banco de dados."
@@ -66,7 +93,7 @@ def register_error_handlers(app: FastAPI) -> None:
 
         payload = fail(
             message=friendly,
-            errors=None,  # se quiser, pode enviar {"detail": raw} para debug
+            errors=None,
             status_code=status_code,
             request=request,
         )
@@ -74,14 +101,9 @@ def register_error_handlers(app: FastAPI) -> None:
 
     @app.middleware("http")
     async def catch_all_exceptions(request: Request, call_next):
-        # Fallback 500 — mas NÃO deve engolir exceções que já têm handler (ex.: IntegrityError).
         try:
             return await call_next(request)
-        except IntegrityError:        # <-- deixe o handler acima tratar
-            raise
-        except RequestValidationError:  # idem
-            raise
-        except StarletteHTTPException:  # idem
+        except (IntegrityError, RequestValidationError, StarletteHTTPException):
             raise
         except Exception as e:
             payload = fail(
