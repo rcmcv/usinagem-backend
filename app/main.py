@@ -15,6 +15,7 @@ from app.api.v1.endpoints.contrato_hh_precos import router as contrato_hh_precos
 from app.api.v1.endpoints.contrato_material_precos import router as contrato_material_precos_router
 from app.api.v1.endpoints.contratos_precos import router as contratos_precos_router
 from app.api.v1.endpoints.orcamentos import router as orcamentos_router
+from app.api.v1.endpoints.orcamento_itens import router as orcamento_itens_router
 
 from app.core.error_handlers import register_error_handlers
 from app.core.middlewares import RequestIDMiddleware
@@ -59,6 +60,7 @@ def create_app() -> FastAPI:
     app.include_router(contrato_material_precos_router, prefix="/api/v1", tags=["Contrato — Materiais"])
     app.include_router(contratos_precos_router, prefix="/api/v1", tags=["Contratos — Preços (resolver)"])
     app.include_router(orcamentos_router, prefix="/api/v1", tags=["Orçamentos"])
+    app.include_router(orcamento_itens_router, prefix="/api/v1", tags=["Orçamentos - Itens"])
     
     @app.get("/", tags=["Root"])
     def root():
